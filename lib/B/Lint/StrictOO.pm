@@ -1,53 +1,24 @@
 package B::Lint::StrictOO;
+BEGIN {
+  $B::Lint::StrictOO::VERSION = '0.04';
+}
+# ABSTRACT: Apply strict to classes and methods
 
-use strict;
+
 use 5.006;
+use strict;
 use warnings;
 
-=head1 NAME
-
-B::Lint::StrictOO - Apply strict to classes and methods
-
-=head1 VERSION
-
-Version 0.03
-
-=cut
-
-our $VERSION = '0.03';
-
-=head1 SYNOPSIS
-
-Validates that classes exist, that methods that are called on classes
-and objects, and variables aren't used as method names.
-
-From the command line:
-
-    perl -MB::Lint::StrictOO -MO=Lint,oo my_file.pl
-
-Against a program F<my_file.pl>:
-
-    sub Hickory::Dickory::dock;
-
-    Mouse->dockk;           # Class Mouse doesn't exist
-    Hickory::Dickory->dock;
-    Hickory::Dickory->$_;   # Symbolic method call
-    $obj->dockk;            # Object can't do method
-    $obj->dock;
-    $obj->$_;               # Symbolic method call
-
-=cut
-
-use B::Lint;
+use B::Lint 1.09 ();
 B::Lint->register_plugin( __PACKAGE__, [ 'oo' ] );
 
-use File::Slurp qw( read_file );
-use B::Utils 0.10;
+use B::Utils 0.10 ();
 
 use constant _invocant_is_lexical_object => 1;
 use constant _invocant_is_global_object  => 2;
 use constant _invocant_is_literal_class  => 3;
 use constant _invocant_is_unknown        => 4;
+
 
 sub match {
     # Arguments:
@@ -158,11 +129,20 @@ sub class_exists {
     return 1;
 }
 
-sub lint_class_method_call {
-    my ( $invocant_op, $method_op ) = @_;
 
-    my $class_name  = $invocant_op->sv_harder->PV;
-    my $method_name = $method_op  ->sv_harder->PV;
+sub lint_class_method_call {
+    my B::OP $invocant_op = $_[0];
+    my B::OP $method_op   = $_[1];
+
+    my $class_name;
+    if ( $invocant_op->can('sv_harder') ) {
+        $class_name = $invocant_op->sv_harder->PV;
+    }
+
+    my $method_name;
+    if ( $method_op->can('sv_harder') ) {
+        $method_name = $method_op->sv_harder->PV;
+    }
 
     # check strict classes
     if ( defined $class_name ) {
@@ -194,6 +174,7 @@ sub lint_class_method_call {
     return;
 }
 
+
 sub nearby_classes_perform {
     my ( $method_name ) = @_;
 
@@ -203,6 +184,7 @@ sub nearby_classes_perform {
 
     return 0;
 }
+
 
 sub guess_invocant_category {
     my ( $op ) = @_;
@@ -265,6 +247,7 @@ sub guess_invocant_category {
     return _invocant_is_unknown();
 }
 
+
 our %nearby_classes_cache;
 sub nearby_classes_in_current_file {
     my $file = B::Lint->file;
@@ -272,6 +255,7 @@ sub nearby_classes_in_current_file {
     return $nearby_classes_cache{$file}
         ||= nearby_classes_in_file( $file );
 }
+
 
 sub nearby_classes_in_file {
     my ( $file ) = @_;
@@ -298,9 +282,56 @@ sub nearby_classes_in_file {
     return [ sort keys %seen ];
 }
 
-=head1 AUTHOR
+'Why did the elf cross the road? To get to the ';
 
-Josh ben Jore, C<< <jjore at cpan.org> >>
+
+
+=pod
+
+=head1 NAME
+
+B::Lint::StrictOO - Apply strict to classes and methods
+
+=head1 VERSION
+
+version 0.04
+
+=head1 METHODS
+
+=head2 match
+
+=head2 class_exists
+
+=head2 lint_class_method_call
+
+=head2 nearby_classes_perform
+
+=head2 guess_invocant_category
+
+=head2 nearby_classes_in_current_file
+
+=head2 nearby_classes_in_file
+
+=head1 SYNOPSIS
+Validates that classes exist, that methods that are called on classes
+and objects, and variables aren't used as method names.
+
+From the command line:
+
+    perl -MB::Lint::StrictOO -MO=Lint,oo my_file.pl
+
+Against a program F<my_file.pl>:
+
+    sub Hickory::Dickory::dock;
+
+    Mouse->dockk;           # Class Mouse doesn't exist
+    Hickory::Dickory->dock;
+    Hickory::Dickory->$_;   # Symbolic method call
+    $obj->dockk;            # Object can't do method
+    $obj->dock;
+    $obj->$_;               # Symbolic method call
+
+=head1 PRIVATE API
 
 =head1 SUPPORT
 
@@ -332,13 +363,19 @@ L<http://search.cpan.org/dist/B-Lint-StrictOO>
 
 =head1 ACKNOWLEDGEMENTS
 
-=head1 COPYRIGHT & LICENSE
+=head1 AUTHOR
 
-Copyright 2006 Joshua ben Jore, all rights reserved.
+Josh Jore <jjore@cpan.org>
 
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+=head1 COPYRIGHT AND LICENSE
+
+This software is copyright (c) 2011 by Josh Jore.
+
+This is free software; you can redistribute it and/or modify it under
+the same terms as the Perl 5 programming language system itself.
 
 =cut
 
-1;
+
+__END__
+
